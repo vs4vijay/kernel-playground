@@ -1,0 +1,39 @@
+name: Build Linux using BuildRoot
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: "Configuration file"
+        required: true
+  push:
+    branches:
+      - main
+
+jobs:
+  buildroot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up BuildRoot
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          git clone https://gitlab.com/buildroot.org/buildroot
+          cd buildroot
+          # make menuconfig
+          make raspberrypi3_64_defconfig
+
+      - name: Build Linux
+        run: |
+          cd buildroot
+          make
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: buildroot-artifacts
+          path: buildroot/output/images/
