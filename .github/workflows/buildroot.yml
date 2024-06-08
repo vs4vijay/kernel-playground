@@ -19,7 +19,12 @@ jobs:
 
     steps:
       - name: Set BuildRoot Config
-        run: echo "BUILDROOT_CONFIG=${{  github.event.inputs.defconfig || 'raspberrypi3_64_defconfig' }}" >> $GITHUB_ENV
+        run: |
+          echo "MY_BUILDROOT_CONFIG=${{  github.event.inputs.defconfig || 'raspberrypi3_64_defconfig' }}" >> $GITHUB_ENV
+          LINUX_NAME=${MY_BUILDROOT_CONFIG%_defconfig}
+          LINUX_NAME=${LINUX_NAME//_/ }
+          LINUX_NAME=$(echo $LINUX_NAME | sed -r 's/(^| )(.)/\U\2/g')
+          echo "LINUX_NAME=${LINUX_NAME}" >> $GITHUB_ENV
 
       - name: Checkout BuildRoot repository
         run: |
@@ -27,8 +32,8 @@ jobs:
       
       - name: Validate BuildRoot Config
         run: |
-          if [[ ! -f "buildroot/configs/${{ env.BUILDROOT_CONFIG }}" ]]; then
-            echo "[-] Invalid config value provided: ${{ env.BUILDROOT_CONFIG }}"
+          if [[ ! -f "buildroot/configs/${{ env.MY_BUILDROOT_CONFIG }}" ]]; then
+            echo "[-] Invalid config value provided: ${{ env.MY_BUILDROOT_CONFIG }}"
             exit 1
           fi
 
@@ -36,7 +41,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: buildroot
-          key: ${{ runner.os }}-buildroot-${{ hashFiles('buildroot/Makefile') }}
+          key: ${{ runner.os }}-buildroot-${{ env.MY_BUILDROOT_CONFIG }}-${{ hashFiles('buildroot/Makefile') }}
           restore-keys: |
             ${{ runner.os }}-buildroot-
 
@@ -48,12 +53,12 @@ jobs:
           
           cd buildroot
           # make menuconfig
-          echo "--- 1BUILDROOT_CONFIG: ${BUILDROOT_CONFIG}"
-          echo "--- 2BUILDROOT_CONFIG: ${{ env.BUILDROOT_CONFIG }}"
-          echo "--- 3BUILDROOT_CONFIG: ${{ github.event.inputs.defconfig }}"
-          make ${{ github.event.inputs.defconfig || 'raspberrypi3_64_defconfig' }}
+          echo "--- LINUX_NAME: ${LINUX_NAME}"
+          echo "--- 1MY_BUILDROOT_CONFIG: ${MY_BUILDROOT_CONFIG}"
+          echo "--- 2MY_BUILDROOT_CONFIG: ${{ env.MY_BUILDROOT_CONFIG }}"
+          make "${MY_BUILDROOT_CONFIG}"
 
-      - name: Build Linux
+      - name: Build ${{ env.LINUX_NAME }} Linux
         run: |
           cd buildroot
           make
@@ -61,5 +66,5 @@ jobs:
       - name: Upload image
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BUILDROOT_CONFIG }}-buildroot-artifacts
+          name: ${{ env.MY_BUILDROOT_CONFIG }}-buildroot-artifacts
           path: buildroot/output/images/
