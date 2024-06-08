@@ -3,37 +3,61 @@ name: Build Linux using BuildRoot
 on:
   workflow_dispatch:
     inputs:
-      config:
-        description: "Configuration file"
+      defconfig:
+        description: "BuildRoot defconfig file"
         required: true
+        default: "raspberrypi3_64_defconfig"
   push:
     branches:
       - main
+
+# TODO: Setup caching for BuildRoot
 
 jobs:
   buildroot:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Set BuildRoot Config
+        run: echo "BUILDROOT_CONFIG=${{  github.event.inputs.defconfig || 'raspberrypi3_64_defconfig' }}" >> $GITHUB_ENV
+
+      - name: Validate BuildRoot Config
+        run: |
+          if [[ ! -f "configs/${{ env.BUILDROOT_CONFIG }}" ]]; then
+            echo "[-] Invalid config value provided: ${{ env.BUILDROOT_CONFIG }}"
+            exit 1
+          fi
+
+      - name: Cache BuildRoot dependencies
+        uses: actions/cache@v4
+        with:
+          path: buildroot
+          key: ${{ runner.os }}-buildroot-${{ hashFiles('buildroot/Makefile') }}
+          restore-keys: |
+            ${{ runner.os }}-buildroot-
+
+      - name: Checkout BuildRoot repository
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses5-dev libssl-dev libpcap-dev net-tools git rsync unzip wget curl bc python3
+          git clone --depth 1 https://gitlab.com/buildroot.org/buildroot
 
       - name: Set up BuildRoot
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential
-          git clone https://gitlab.com/buildroot.org/buildroot
           cd buildroot
           # make menuconfig
-          make raspberrypi3_64_defconfig
+          echo "--- 1BUILDROOT_CONFIG: ${BUILDROOT_CONFIG}"
+          echo "--- 2BUILDROOT_CONFIG: ${{ env.BUILDROOT_CONFIG }}"
+          echo "--- 3BUILDROOT_CONFIG: ${{ github.event.inputs.defconfig }}"
+          make ${{ github.event.inputs.defconfig || 'raspberrypi3_64_defconfig' }}
 
       - name: Build Linux
         run: |
           cd buildroot
           make
 
-      - name: Archive artifacts
-        uses: actions/upload-artifact@v2
+      - name: Upload image
+        uses: actions/upload-artifact@v4
         with:
-          name: buildroot-artifacts
+          name: ${{ env.BUILDROOT_CONFIG }}-buildroot-artifacts
           path: buildroot/output/images/
