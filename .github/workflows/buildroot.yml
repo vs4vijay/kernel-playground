@@ -21,9 +21,13 @@ jobs:
       - name: Set BuildRoot Config
         run: echo "BUILDROOT_CONFIG=${{  github.event.inputs.defconfig || 'raspberrypi3_64_defconfig' }}" >> $GITHUB_ENV
 
+      - name: Checkout BuildRoot repository
+        run: |
+          git clone --depth 1 https://gitlab.com/buildroot.org/buildroot
+      
       - name: Validate BuildRoot Config
         run: |
-          if [[ ! -f "configs/${{ env.BUILDROOT_CONFIG }}" ]]; then
+          if [[ ! -f "buildroot/configs/${{ env.BUILDROOT_CONFIG }}" ]]; then
             echo "[-] Invalid config value provided: ${{ env.BUILDROOT_CONFIG }}"
             exit 1
           fi
@@ -36,14 +40,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildroot-
 
-      - name: Checkout BuildRoot repository
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libncurses5-dev libssl-dev libpcap-dev net-tools git rsync unzip wget curl bc python3
-          git clone --depth 1 https://gitlab.com/buildroot.org/buildroot
-
       - name: Set up BuildRoot
         run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses5-dev libssl-dev libpcap-dev net-tools git rsync \
+            unzip wget curl bc python3
+          
           cd buildroot
           # make menuconfig
           echo "--- 1BUILDROOT_CONFIG: ${BUILDROOT_CONFIG}"
