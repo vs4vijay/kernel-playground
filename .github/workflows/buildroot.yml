@@ -22,13 +22,13 @@ jobs:
         run: |
           echo "MY_BUILDROOT_CONFIG=${{  github.event.inputs.defconfig || 'raspberrypi3_64_defconfig' }}" >> $GITHUB_ENV
           LINUX_NAME=${MY_BUILDROOT_CONFIG%_defconfig}
-          LINUX_NAME=${LINUX_NAME//_/ }
-          LINUX_NAME=$(echo $LINUX_NAME | sed -r 's/(^| )(.)/\U\2/g')
+          # LINUX_NAME=${LINUX_NAME//_/ }
+          # LINUX_NAME=$(echo $LINUX_NAME | sed -r 's/(^| )(.)/\U\2/g')
           echo "LINUX_NAME=${LINUX_NAME}" >> $GITHUB_ENV
 
       - name: Checkout BuildRoot repository
         run: |
-          git clone --depth 1 https://gitlab.com/buildroot.org/buildroot
+          git clone --depth 1 https://gitlab.com/buildroot.org/buildroot.git
       
       - name: Validate BuildRoot Config
         run: |
@@ -43,7 +43,7 @@ jobs:
           path: buildroot
           key: ${{ runner.os }}-buildroot-${{ env.MY_BUILDROOT_CONFIG }}-${{ hashFiles('buildroot/Makefile') }}
           restore-keys: |
-            ${{ runner.os }}-buildroot-
+            ${{ runner.os }}-buildroot-${{ env.MY_BUILDROOT_CONFIG }}-
 
       - name: Set up BuildRoot
         run: |
